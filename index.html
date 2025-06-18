@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Cybersecurity Driving Forces Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js" defer></script>
     <style>
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -76,7 +75,7 @@
         </section>
     </main>
     
-    <script>
+    <script type="module">
     class UltimateDashboard {
         constructor() {
             this.allForces = [];
@@ -92,13 +91,9 @@
 
         async fetchData() {
             const response = await fetch('driving_forces.json');
-            if (!response.ok) {
-                throw new Error(`Could not load data file (HTTP ${response.status})`);
-            }
+            if (!response.ok) { throw new Error(`Could not load data file (HTTP ${response.status})`); }
             const rawData = await response.json();
-            if (!rawData || rawData.length < 2) {
-                throw new Error("Data file is empty or invalid.");
-            }
+            if (!rawData || rawData.length < 2) { throw new Error("Data file is empty or invalid."); }
             const headers = rawData[0];
             const dataRows = rawData.slice(1);
             const headerMap = Object.entries(headers).reduce((acc, [key, value]) => { acc[value] = key; return acc; }, {});
@@ -108,7 +103,6 @@
             });
         }
         
-        // ... all other methods from before remain the same ...
         getUniqueValues(key) { return ['All', ...new Set(this.allForces.map(force => force[key]).filter(val => val && val !== "N/A"))]; }
         populateFilters() { this.elements.classificationFilter.innerHTML = this.getUniqueValues('l1').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.domainFilter.innerHTML = this.getUniqueValues('l2').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.outlookFilter.innerHTML = this.getUniqueValues('outlook').map(o => `<option value="${o}">${o}</option>`).join(''); }
         renderSummaryStats(forces) { const highMomentumCount = forces.filter(f => ['High', 'Very high'].includes(f.momentum)).length; const worseningOutlookCount = forces.filter(f => ['Worsening', 'Volatile'].includes(f.outlook)).length; const l1Breakdown = forces.reduce((acc, f) => { acc[f.l1] = (acc[f.l1] || 0) + 1; return acc; }, {}); const topCategory = Object.entries(l1Breakdown).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0]; this.elements.summaryStats.innerHTML = `<div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${forces.length}</p><p class="text-sm text-slate-600">Forces Displayed</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${highMomentumCount}</p><p class="text-sm text-slate-600">High Momentum</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${worseningOutlookCount}</p><p class="text-sm text-slate-600">Worsening Outlook</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${topCategory[1]}</p><p class="text-sm text-slate-600">in top category (${topCategory[0]})</p></div>`; }
@@ -119,7 +113,7 @@
         renderCards(forces) { if (forces.length === 0) { this.elements.cardsContainer.innerHTML = `<p class="text-slate-500 text-center col-span-full">No driving forces match the current filters.</p>`; return; } this.elements.cardsContainer.innerHTML = forces.map((force, index) => `<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full card-hover"><div class="flex-grow"><h4 class="text-lg font-bold text-slate-900 mb-2">${force.name}</h4><div class="mb-4 flex flex-wrap gap-2"><span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l1}</span><span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l2}</span></div><p class="text-slate-600 text-sm mb-4">${force.desc}</p></div><div class="mt-auto pt-4 border-t border-slate-200"><button onclick="UltimateDashboard.toggleCitation('citation-${index}')" class="text-sm font-semibold text-amber-600 hover:text-amber-700">Show Citation</button><div id="citation-${index}" class="citation mt-2"><p class="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg">${force.citation}</p></div></div></div>`).join(''); }
         applyFiltersAndRender(fromURL = false) { const searchVal = this.elements.searchInput.value.toLowerCase(); const l1Val = this.elements.classificationFilter.value; const l2Val = this.elements.domainFilter.value; const outlookVal = this.elements.outlookFilter.value; this.filteredForces = this.allForces.filter(f => (searchVal === '' || f.name.toLowerCase().includes(searchVal) || f.desc.toLowerCase().includes(searchVal)) && (l1Val === 'All' || f.l1 === l1Val) && (l2Val === 'All' || f.l2 === l2Val) && (outlookVal === 'All' || f.outlook === outlookVal)); this.renderCards(this.filteredForces); this.renderSummaryStats(this.filteredForces); this.renderSunburstChart(this.filteredForces); if (!fromURL) this.updateURL(); }
         updateURL() { const filters = { search: this.elements.searchInput.value, l1: this.elements.classificationFilter.value, l2: this.elements.domainFilter.value, outlook: this.elements.outlookFilter.value }; try { const hash = btoa(JSON.stringify(filters)); history.pushState(null, '', '#' + hash); } catch (e) { console.error("Could not update URL", e); } }
-        loadFiltersFromURL() { if (!window.location.hash) return; try { const filters = JSON.parse(atob(window.location.hash.substring(1))); this.elements.searchInput.value = filters.search || ''; this.elements.classificationFilter.value = filters.l1 || 'All'; this.elements.domainFilter.value = filters.l2 || 'All'; this.elements.outlookFilter.value = filters.outlook || 'All'; } catch (e) { /* Fail silently if hash is invalid */ } }
+        loadFiltersFromURL() { if (!window.location.hash) return; try { const filters = JSON.parse(atob(window.location.hash.substring(1))); this.elements.searchInput.value = filters.search || ''; this.elements.classificationFilter.value = filters.l1 || 'All'; this.elements.domainFilter.value = filters.l2 || 'All'; this.elements.outlookFilter.value = filters.outlook || 'All'; } catch (e) { /* Fail silently */ } }
         debounce(func, delay) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
         exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
         addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); }
@@ -127,36 +121,24 @@
 
         async init() {
             try {
-                console.log("🚀 Initializing Dashboard...");
                 await this.fetchData();
-                console.log("✅ Step 1: Data fetched successfully.");
                 this.populateFilters();
-                console.log("✅ Step 2: Filters populated.");
                 this.loadFiltersFromURL();
-                console.log("✅ Step 3: Loaded filters from URL (if any).");
                 this.addEventListeners();
-                console.log("✅ Step 4: Event listeners attached.");
                 this.applyFiltersAndRender(true);
                 this.elements.loadingIndicator.style.display = 'none';
                 this.elements.mainContent.style.display = 'block';
-                console.log("✅ Dashboard initialized successfully!");
             } catch (error) {
-                // NEW: This block now correctly handles the error display.
-                this.elements.loadingIndicator.innerHTML = `
-                    <p class="text-red-500 font-bold">Error: ${error.message}</p>
-                    <p class="text-slate-500 mt-2">Please ensure the data file is named exactly <strong>driving_forces.json</strong> and is in the same folder on GitHub as <strong>index.html</strong>.</p>
-                    <p class="text-slate-500 mt-1">It may also take 5-10 minutes for file changes to become live on GitHub Pages.</p>
-                `;
+                this.elements.loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">Error: ${error.message}</div>`;
                 console.error("Dashboard initialization failed:", error);
             }
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        const app = new UltimateDashboard();
-        app.init();
-    });
+    // This ensures the DOM is ready before we create our app instance.
+    // The 'type="module"' on the script tag ensures this code runs after the deferred library scripts.
+    const app = new UltimateDashboard();
+    app.init();
     </script>
 </body>
 </html>
-```
