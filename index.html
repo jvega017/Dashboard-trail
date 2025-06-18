@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cybersecurity Driving Forces Dashboard</title>
+    <title>Ultimate Cybersecurity Driving Forces Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js"></script>
     <style>
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -21,9 +19,11 @@
     </style>
 </head>
 <body class="text-slate-800">
+
     <div id="loading-indicator" class="text-center p-8">
-        <p class="text-lg text-slate-600">Loading Dashboard Data...</p>
+        <p class="text-lg text-slate-600">Loading Libraries...</p>
     </div>
+
     <main class="container mx-auto p-4 md:p-8" style="display:none;">
         <header class="text-center mb-8 md:mb-12">
             <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-2">Cybersecurity Driving Forces Dashboard</h1>
@@ -57,7 +57,7 @@
         </section>
     </main>
     
-    <script type="module">
+    <script>
     class UltimateDashboard {
         constructor() { this.allForces = []; this.filteredForces = []; this.chartInstances = {}; this.sunburstColors = {}; this.initDOMElements(); }
         initDOMElements() { this.elements = { searchInput: document.getElementById('search-input'), classificationFilter: document.getElementById('classification-filter'), domainFilter: document.getElementById('domain-filter'), outlookFilter: document.getElementById('outlook-filter'), cardsContainer: document.getElementById('cards-container'), summaryStats: document.getElementById('summary-stats'), resetButton: document.getElementById('reset-filters-btn'), exportButton: document.getElementById('export-csv-btn'), loadingIndicator: document.getElementById('loading-indicator'), mainContent: document.querySelector('main'), sunburstCanvas: document.getElementById('sunburstChart') }; }
@@ -77,23 +77,49 @@
         exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
         addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); }
         static toggleCitation(id) { document.getElementById(id)?.classList.toggle('show'); }
-
         async init() {
-            try {
-                await this.fetchData();
-                this.populateFilters();
-                this.loadFiltersFromURL();
-                this.addEventListeners();
-                this.applyFiltersAndRender(true);
-                this.elements.loadingIndicator.style.display = 'none';
-                this.elements.mainContent.style.display = 'block';
-            } catch (error) {
-                this.elements.loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">Error: ${error.message}</div>`;
-                console.error("Dashboard initialization failed:", error);
-            }
+            this.elements.loadingIndicator.innerHTML = `<p class="text-lg text-slate-600">Loading Data...</p>`;
+            await this.fetchData();
+            this.populateFilters();
+            this.loadFiltersFromURL();
+            this.addEventListeners();
+            this.applyFiltersAndRender(true);
+            this.elements.loadingIndicator.style.display = 'none';
+            this.elements.mainContent.style.display = 'block';
         }
     }
-    document.addEventListener('DOMContentLoaded', () => { const app = new UltimateDashboard(); app.init(); });
+
+    // --- NEW: Guaranteed Script Loader and App Starter ---
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.async = false; // Ensure sequential execution relative to other async=false scripts
+            script.onload = () => resolve(script);
+            script.onerror = () => reject(new Error(`Script load error for ${src}`));
+            document.head.appendChild(script);
+        });
+    }
+
+    async function main() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        try {
+            // Sequentially load the libraries, guaranteeing order.
+            await loadScript("https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js");
+            await loadScript("https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js");
+            
+            // Now that scripts are loaded, initialize the main application.
+            const app = new UltimateDashboard();
+            await app.init();
+
+        } catch (error) {
+            loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">A critical error occurred: ${error.message}</div>`;
+            console.error("A critical error occurred during startup:", error);
+        }
+    }
+
+    // Start the entire process when the initial HTML document is ready.
+    document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
