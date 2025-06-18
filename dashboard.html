@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Cybersecurity Driving Forces Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .chart-container { position: relative; margin: auto; height: 50vh; width: 100%; max-width: 650px; }
+        .filter-select { -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; }
+        .citation { transition: max-height 0.5s ease-in-out, opacity 0.5s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
+        .citation.show { max-height: 500px; opacity: 1; }
+        #loading-indicator { display: block; }
+        .stat-card { background-color: #f1f5f9; border-left: 4px solid #f59e0b; }
+        .card-hover { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div id="loading-indicator" class="text-center p-8">
+        <p class="text-lg text-slate-600">Loading Dashboard Data...</p>
+    </div>
+
+    <main class="container mx-auto p-4 md:p-8" style="display:none;">
+        <header class="text-center mb-8 md:mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-2">Cybersecurity Driving Forces Dashboard</h1>
+            <p class="text-lg text-slate-600 max-w-4xl mx-auto">An interactive, data-driven tool to explore the future of cybersecurity.</p>
+        </header>
+        <section id="summary-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></section>
+        <section id="filters" class="p-6 bg-white rounded-2xl shadow-sm mb-8 border border-slate-200">
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
+                 <h2 class="text-xl font-bold text-slate-800">Explore the Data</h2>
+                 <div>
+                    <button id="reset-filters-btn" class="text-sm font-semibold text-amber-600 hover:text-amber-700 mr-4">Reset Filters</button>
+                    <button id="export-csv-btn" class="text-sm font-semibold text-green-700 hover:text-green-800">Export Filtered to CSV</button>
+                 </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label for="search-input" class="block text-sm font-medium text-slate-600 mb-1">Search Keyword</label>
+                    <input type="text" id="search-input" class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label for="classification-filter" class="block text-sm font-medium text-slate-600 mb-1">PESTEL Domain (L1)</label>
+                    <select id="classification-filter" class="w-full p-2 border border-slate-300 rounded-lg filter-select focus:ring-2 focus:ring-amber-500"></select>
+                </div>
+                <div>
+                    <label for="domain-filter" class="block text-sm font-medium text-slate-600 mb-1">Domain (L2)</label>
+                    <select id="domain-filter" class="w-full p-2 border border-slate-300 rounded-lg filter-select focus:ring-2 focus:ring-amber-500"></select>
+                </div>
+                 <div>
+                    <label for="outlook-filter" class="block text-sm font-medium text-slate-600 mb-1">Outlook</label>
+                    <select id="outlook-filter" class="w-full p-2 border border-slate-300 rounded-lg filter-select focus:ring-2 focus:ring-amber-500"></select>
+                </div>
+            </div>
+        </section>
+        <section id="visualizations" class="mb-12">
+             <div class="p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-center mb-4 text-slate-800">Hierarchical View of Driving Forces</h3>
+                <div class="chart-container">
+                    <canvas id="sunburstChart" aria-label="Sunburst chart showing hierarchical breakdown of driving forces. Click a segment to filter."></canvas>
+                </div>
+            </div>
+        </section>
+        <section id="driving-forces-list">
+             <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-slate-900">Driving Forces Details</h2>
+            </div>
+            <div id="cards-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+        </section>
+    </main>
+    
+    <script>
+    class UltimateDashboard {
+        constructor() {
+            this.allForces = [];
+            this.filteredForces = [];
+            this.chartInstances = {};
+            this.sunburstColors = {};
+            this.initDOMElements();
+        }
+
+        initDOMElements() {
+            this.elements = { searchInput: document.getElementById('search-input'), classificationFilter: document.getElementById('classification-filter'), domainFilter: document.getElementById('domain-filter'), outlookFilter: document.getElementById('outlook-filter'), cardsContainer: document.getElementById('cards-container'), summaryStats: document.getElementById('summary-stats'), resetButton: document.getElementById('reset-filters-btn'), exportButton: document.getElementById('export-csv-btn'), loadingIndicator: document.getElementById('loading-indicator'), mainContent: document.querySelector('main'), sunburstCanvas: document.getElementById('sunburstChart') };
+        }
+
+        async fetchData() {
+            try {
+                const response = await fetch('driving_forces.json');
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                const rawData = await response.json();
+                if (!rawData || rawData.length < 2) throw new Error("Data is empty or invalid.");
+                const headers = rawData[0];
+                const dataRows = rawData.slice(1);
+                const headerMap = Object.entries(headers).reduce((acc, [key, value]) => { acc[value] = key; return acc; }, {});
+                this.allForces = dataRows.map(row => {
+                    const getValue = (col) => row[headerMap[col]] || "N/A";
+                    return { l1: getValue('PESTEL Category (Level 1)'), l2: getValue('Domain (Level 2)'), l3: getValue('Subdomain (Level 3)'), name: getValue('Driving Force Name'), desc: getValue('Driving Force Description'), citation: getValue('Source Citation'), outlook: getValue('Outlook'), momentum: getValue('Momentum/Velocity') };
+                });
+                console.log(`✅ Step 1: Successfully fetched and processed ${this.allForces.length} driving forces.`);
+            } catch (error) {
+                this.elements.loadingIndicator.innerHTML = `<p class="text-red-500 font-bold">Error loading data: ${error.message}</p><p class="text-slate-500">Please ensure 'driving_forces.json' is in the same folder as this HTML file.</p>`;
+                console.error("Data fetch failed:", error);
+                throw error;
+            }
+        }
+
+        getUniqueValues(key) { return ['All', ...new Set(this.allForces.map(force => force[key]).filter(val => val && val !== "N/A"))]; }
+        populateFilters() { this.elements.classificationFilter.innerHTML = this.getUniqueValues('l1').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.domainFilter.innerHTML = this.getUniqueValues('l2').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.outlookFilter.innerHTML = this.getUniqueValues('outlook').map(o => `<option value="${o}">${o}</option>`).join(''); console.log("✅ Step 2: Filters populated."); }
+        renderSummaryStats(forces) { const highMomentumCount = forces.filter(f => ['High', 'Very high'].includes(f.momentum)).length; const worseningOutlookCount = forces.filter(f => ['Worsening', 'Volatile'].includes(f.outlook)).length; const l1Breakdown = forces.reduce((acc, f) => { acc[f.l1] = (acc[f.l1] || 0) + 1; return acc; }, {}); const topCategory = Object.entries(l1Breakdown).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0]; this.elements.summaryStats.innerHTML = `<div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${forces.length}</p><p class="text-sm text-slate-600">Forces Displayed</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${highMomentumCount}</p><p class="text-sm text-slate-600">High Momentum</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${worseningOutlookCount}</p><p class="text-sm text-slate-600">Worsening Outlook</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${topCategory[1]}</p><p class="text-sm text-slate-600">in top category (${topCategory[0]})</p></div>`; }
+        getSunburstColor(ctx) { if (ctx.type !== 'data' || !ctx.raw) return 'transparent'; const { depth, label, parent } = ctx.raw; if (depth === 1) { if (!this.sunburstColors[label]) { const colors = ['#3b82f6', '#16a34a', '#ef4444', '#f97316', '#8b5cf6', '#fde047', '#e11d48', '#14b8a6']; this.sunburstColors[label] = colors[Object.keys(this.sunburstColors).length % colors.length]; } return this.sunburstColors[label]; } const parentLabel = (depth === 2 && parent) ? parent.label : (depth === 3 && parent && parent.parent) ? parent.parent.label : null; if (parentLabel) { const baseColor = this.sunburstColors[parentLabel] || '#cccccc'; return Chart.helpers.color(baseColor).alpha(depth === 2 ? 0.7 : 0.4).rgbString(); } return '#cccccc'; }
+        renderSunburstChart(forces) { const root = { children: [] }; const level1Map = new Map(); for (const force of forces) { if (!force.l1 || force.l1 === "N/A") continue; if (!level1Map.has(force.l1)) level1Map.set(force.l1, { name: force.l1, children: new Map() }); const level2Map = level1Map.get(force.l1).children; if (!force.l2 || force.l2 === "N/A") continue; if (!level2Map.has(force.l2)) level2Map.set(force.l2, { name: force.l2, children: [] }); level2Map.get(force.l2).children.push({ name: force.l3 || force.name, value: 1 }); } for (const [l1Name, l1Node] of level1Map.entries()) { const l1Children = []; for (const [l2Name, l2Node] of l1Node.children.entries()) { l1Children.push({ name: l2Name, children: l2Node.children }); } root.children.push({ name: l1Name, children: l1Children }); } if (this.chartInstances.sunburst) this.chartInstances.sunburst.destroy(); this.chartInstances.sunburst = new Chart(this.elements.sunburstCanvas.getContext('2d'), { type: 'sunburst', data: { datasets: [{ data: root.children, backgroundColor: (ctx) => this.getSunburstColor(ctx) }] }, options: { responsive: true, maintainAspectRatio: false, onClick: (evt, elements) => this.handleChartClick(elements), plugins: { legend: { display: false }, tooltip: { callbacks: { label: (item) => ` ${item.label}: ${item.value}` } } } } }); }
+        handleChartClick(elements) { if (!elements || elements.length === 0 || !elements[0].element) return; const clickedElement = elements[0].element.$context.raw; if (clickedElement.depth === 1) this.setFilter('classification', clickedElement.label); if (clickedElement.depth === 2) this.setFilter('domain', clickedElement.label); }
+        setFilter(filterName, value) { if (filterName === 'classification') this.elements.classificationFilter.value = value; if (filterName === 'domain') this.elements.domainFilter.value = value; this.applyFiltersAndRender(); }
+        renderCards(forces) { if (forces.length === 0) { this.elements.cardsContainer.innerHTML = `<p class="text-slate-500 text-center col-span-full">No driving forces match the current filters.</p>`; return; } this.elements.cardsContainer.innerHTML = forces.map((force, index) => `<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full card-hover"><div class="flex-grow"><h4 class="text-lg font-bold text-slate-900 mb-2">${force.name}</h4><div class="mb-4 flex flex-wrap gap-2"><span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l1}</span><span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l2}</span></div><p class="text-slate-600 text-sm mb-4">${force.desc}</p></div><div class="mt-auto pt-4 border-t border-slate-200"><button onclick="UltimateDashboard.toggleCitation('citation-${index}')" class="text-sm font-semibold text-amber-600 hover:text-amber-700">Show Citation</button><div id="citation-${index}" class="citation mt-2"><p class="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg">${force.citation}</p></div></div></div>`).join(''); }
+        applyFiltersAndRender(fromURL = false) { const searchVal = this.elements.searchInput.value.toLowerCase(); const l1Val = this.elements.classificationFilter.value; const l2Val = this.elements.domainFilter.value; const outlookVal = this.elements.outlookFilter.value; this.filteredForces = this.allForces.filter(f => (searchVal === '' || f.name.toLowerCase().includes(searchVal) || f.desc.toLowerCase().includes(searchVal)) && (l1Val === 'All' || f.l1 === l1Val) && (l2Val === 'All' || f.l2 === l2Val) && (outlookVal === 'All' || f.outlook === outlookVal)); this.renderCards(this.filteredForces); this.renderSummaryStats(this.filteredForces); this.renderSunburstChart(this.filteredForces); if (!fromURL) this.updateURL(); }
+        updateURL() { const filters = { search: this.elements.searchInput.value, l1: this.elements.classificationFilter.value, l2: this.elements.domainFilter.value, outlook: this.elements.outlookFilter.value }; try { const hash = btoa(JSON.stringify(filters)); history.pushState(null, '', '#' + hash); } catch (e) { console.error("Could not update URL", e); } }
+        loadFiltersFromURL() { if (!window.location.hash) return; try { const filters = JSON.parse(atob(window.location.hash.substring(1))); this.elements.searchInput.value = filters.search || ''; this.elements.classificationFilter.value = filters.l1 || 'All'; this.elements.domainFilter.value = filters.l2 || 'All'; this.elements.outlookFilter.value = filters.outlook || 'All'; console.log("✅ Step 3: Loaded filters from URL."); } catch (e) { /* Fail silently if hash is invalid */ } }
+        debounce(func, delay) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; }
+        exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
+        addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); console.log("✅ Step 4: Event listeners attached."); }
+        static toggleCitation(id) { document.getElementById(id)?.classList.toggle('show'); }
+        async init() { try { console.log("🚀 Initializing Dashboard..."); await this.fetchData(); this.populateFilters(); this.loadFiltersFromURL(); this.addEventListeners(); this.applyFiltersAndRender(true); this.elements.loadingIndicator.style.display = 'none'; this.elements.mainContent.style.display = 'block'; console.log("✅ Dashboard initialized successfully!"); } catch (error) { /* Error is already handled in fetchData */ } }
+    }
+    document.addEventListener('DOMContentLoaded', () => { const app = new UltimateDashboard(); app.init(); });
+    </script>
+</body>
+</html>
