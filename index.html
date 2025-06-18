@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ultimate Cybersecurity Driving Forces Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js" defer></script>
     <style>
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -23,7 +21,7 @@
 <body class="text-slate-800">
 
     <div id="loading-indicator" class="text-center p-8">
-        <p class="text-lg text-slate-600">Loading Dashboard Data...</p>
+        <p class="text-lg text-slate-600">Loading Dashboard Libraries...</p>
     </div>
 
     <main class="container mx-auto p-4 md:p-8" style="display:none;">
@@ -75,34 +73,13 @@
         </section>
     </main>
     
-    <script type="module">
+    <script>
+    // --- The Dashboard Class Definition ---
+    // This is the same class as before, containing all the logic for the dashboard.
     class UltimateDashboard {
-        constructor() {
-            this.allForces = [];
-            this.filteredForces = [];
-            this.chartInstances = {};
-            this.sunburstColors = {};
-            this.initDOMElements();
-        }
-
-        initDOMElements() {
-            this.elements = { searchInput: document.getElementById('search-input'), classificationFilter: document.getElementById('classification-filter'), domainFilter: document.getElementById('domain-filter'), outlookFilter: document.getElementById('outlook-filter'), cardsContainer: document.getElementById('cards-container'), summaryStats: document.getElementById('summary-stats'), resetButton: document.getElementById('reset-filters-btn'), exportButton: document.getElementById('export-csv-btn'), loadingIndicator: document.getElementById('loading-indicator'), mainContent: document.querySelector('main'), sunburstCanvas: document.getElementById('sunburstChart') };
-        }
-
-        async fetchData() {
-            const response = await fetch('driving_forces.json');
-            if (!response.ok) { throw new Error(`Could not load data file (HTTP ${response.status})`); }
-            const rawData = await response.json();
-            if (!rawData || rawData.length < 2) { throw new Error("Data file is empty or invalid."); }
-            const headers = rawData[0];
-            const dataRows = rawData.slice(1);
-            const headerMap = Object.entries(headers).reduce((acc, [key, value]) => { acc[value] = key; return acc; }, {});
-            this.allForces = dataRows.map(row => {
-                const getValue = (col) => row[headerMap[col]] || "N/A";
-                return { l1: getValue('PESTEL Category (Level 1)'), l2: getValue('Domain (Level 2)'), l3: getValue('Subdomain (Level 3)'), name: getValue('Driving Force Name'), desc: getValue('Driving Force Description'), citation: getValue('Source Citation'), outlook: getValue('Outlook'), momentum: getValue('Momentum/Velocity') };
-            });
-        }
-        
+        constructor() { this.allForces = []; this.filteredForces = []; this.chartInstances = {}; this.sunburstColors = {}; this.initDOMElements(); }
+        initDOMElements() { this.elements = { searchInput: document.getElementById('search-input'), classificationFilter: document.getElementById('classification-filter'), domainFilter: document.getElementById('domain-filter'), outlookFilter: document.getElementById('outlook-filter'), cardsContainer: document.getElementById('cards-container'), summaryStats: document.getElementById('summary-stats'), resetButton: document.getElementById('reset-filters-btn'), exportButton: document.getElementById('export-csv-btn'), loadingIndicator: document.getElementById('loading-indicator'), mainContent: document.querySelector('main'), sunburstCanvas: document.getElementById('sunburstChart') }; }
+        async fetchData() { const response = await fetch('driving_forces.json'); if (!response.ok) { throw new Error(`Could not load data file (HTTP ${response.status})`); } const rawData = await response.json(); if (!rawData || rawData.length < 2) { throw new Error("Data file is empty or invalid."); } const headers = rawData[0]; const dataRows = rawData.slice(1); const headerMap = Object.entries(headers).reduce((acc, [key, value]) => { acc[value] = key; return acc; }, {}); this.allForces = dataRows.map(row => { const getValue = (col) => row[headerMap[col]] || "N/A"; return { l1: getValue('PESTEL Category (Level 1)'), l2: getValue('Domain (Level 2)'), l3: getValue('Subdomain (Level 3)'), name: getValue('Driving Force Name'), desc: getValue('Driving Force Description'), citation: getValue('Source Citation'), outlook: getValue('Outlook'), momentum: getValue('Momentum/Velocity') }; }); }
         getUniqueValues(key) { return ['All', ...new Set(this.allForces.map(force => force[key]).filter(val => val && val !== "N/A"))]; }
         populateFilters() { this.elements.classificationFilter.innerHTML = this.getUniqueValues('l1').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.domainFilter.innerHTML = this.getUniqueValues('l2').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.outlookFilter.innerHTML = this.getUniqueValues('outlook').map(o => `<option value="${o}">${o}</option>`).join(''); }
         renderSummaryStats(forces) { const highMomentumCount = forces.filter(f => ['High', 'Very high'].includes(f.momentum)).length; const worseningOutlookCount = forces.filter(f => ['Worsening', 'Volatile'].includes(f.outlook)).length; const l1Breakdown = forces.reduce((acc, f) => { acc[f.l1] = (acc[f.l1] || 0) + 1; return acc; }, {}); const topCategory = Object.entries(l1Breakdown).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0]; this.elements.summaryStats.innerHTML = `<div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${forces.length}</p><p class="text-sm text-slate-600">Forces Displayed</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${highMomentumCount}</p><p class="text-sm text-slate-600">High Momentum</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${worseningOutlookCount}</p><p class="text-sm text-slate-600">Worsening Outlook</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${topCategory[1]}</p><p class="text-sm text-slate-600">in top category (${topCategory[0]})</p></div>`; }
@@ -118,27 +95,40 @@
         exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
         addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); }
         static toggleCitation(id) { document.getElementById(id)?.classList.toggle('show'); }
+        async init() { await this.fetchData(); this.populateFilters(); this.loadFiltersFromURL(); this.addEventListeners(); this.applyFiltersAndRender(true); this.elements.loadingIndicator.style.display = 'none'; this.elements.mainContent.style.display = 'block'; }
+    }
+    
+    // --- New, Robust Script Loading and Initialization ---
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve(script);
+            script.onerror = () => reject(new Error(`Script load error for ${src}`));
+            document.head.appendChild(script);
+        });
+    }
 
-        async init() {
-            try {
-                await this.fetchData();
-                this.populateFilters();
-                this.loadFiltersFromURL();
-                this.addEventListeners();
-                this.applyFiltersAndRender(true);
-                this.elements.loadingIndicator.style.display = 'none';
-                this.elements.mainContent.style.display = 'block';
-            } catch (error) {
-                this.elements.loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">Error: ${error.message}</div>`;
-                console.error("Dashboard initialization failed:", error);
-            }
+    async function main() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        try {
+            console.log("Loading Chart.js library...");
+            await loadScript("https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js");
+            console.log("Chart.js loaded. Loading Sunburst plugin...");
+            await loadScript("https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js");
+            console.log("Sunburst plugin loaded. Initializing dashboard.");
+
+            const app = new UltimateDashboard();
+            await app.init();
+            console.log("✅ Dashboard initialized successfully!");
+
+        } catch (error) {
+            loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">A critical error occurred: ${error.message}</div>`;
+            console.error("A critical error occurred during startup:", error);
         }
     }
 
-    // This ensures the DOM is ready before we create our app instance.
-    // The 'type="module"' on the script tag ensures this code runs after the deferred library scripts.
-    const app = new UltimateDashboard();
-    app.init();
+    document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
