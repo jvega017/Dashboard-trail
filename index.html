@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cybersecurity Driving Forces Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.0/dist/chart.min.js"></script>
+    
     <style>
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -21,7 +25,7 @@
 <body class="text-slate-800">
 
     <div id="loading-indicator" class="text-center p-8">
-        <p class="text-lg text-slate-600">Loading Required Libraries...</p>
+        <p class="text-lg text-slate-600">Loading Dashboard...</p>
     </div>
 
     <main class="container mx-auto p-4 md:p-8" style="display:none;">
@@ -66,7 +70,7 @@
         populateFilters() { this.elements.classificationFilter.innerHTML = this.getUniqueValues('l1').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.domainFilter.innerHTML = this.getUniqueValues('l2').map(c => `<option value="${c}">${c}</option>`).join(''); this.elements.outlookFilter.innerHTML = this.getUniqueValues('outlook').map(o => `<option value="${o}">${o}</option>`).join(''); }
         renderSummaryStats(forces) { const highMomentumCount = forces.filter(f => ['High', 'Very high'].includes(f.momentum)).length; const worseningOutlookCount = forces.filter(f => ['Worsening', 'Volatile'].includes(f.outlook)).length; const l1Breakdown = forces.reduce((acc, f) => { acc[f.l1] = (acc[f.l1] || 0) + 1; return acc; }, {}); const topCategory = Object.entries(l1Breakdown).sort((a,b) => b[1] - a[1])[0] || ['N/A', 0]; this.elements.summaryStats.innerHTML = `<div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${forces.length}</p><p class="text-sm text-slate-600">Forces Displayed</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${highMomentumCount}</p><p class="text-sm text-slate-600">High Momentum</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${worseningOutlookCount}</p><p class="text-sm text-slate-600">Worsening Outlook</p></div><div class="stat-card p-4 rounded-lg"><p class="text-2xl font-bold">${topCategory[1]}</p><p class="text-sm text-slate-600">in top category (${topCategory[0]})</p></div>`; }
         renderTreemapChart(forces) { const data = forces.map(force => ({ ...force, value: 1 })); if (this.chartInstances.treemap) { this.chartInstances.treemap.destroy(); } this.chartInstances.treemap = new Chart(this.elements.treemapCanvas.getContext('2d'), { type: 'treemap', data: { datasets: [{ tree: data, key: 'value', groups: ['l1', 'l2'], borderWidth: 1, spacing: 1, backgroundColor: (ctx) => { if (!ctx.raw || !ctx.raw.g) return '#ccc'; const group = ctx.raw.g; if (!this.colorMap[group]) { const colors = ['#3b82f6', '#16a34a', '#ef4444', '#f97316', '#8b5cf6', '#fde047', '#e11d48', '#14b8a6']; this.colorMap[group] = colors[Object.keys(this.colorMap).length % colors.length]; } const baseColor = this.colorMap[group]; const isRoot = ctx.raw.g === ctx.raw.s; return Chart.helpers.color(baseColor).alpha(isRoot ? 0.8 : 0.5).rgbString(); }, labels: { display: true, font: { size: 12 }, color: 'white', formatter(ctx) { if (ctx.raw) { return ctx.raw.g; } return ''; } } }] }, options: { onClick: (evt, elements) => this.handleChartClick(elements), plugins: { legend: { display: false }, tooltip: { callbacks: { title(items) { return items[0].raw.g; }, label(item) { return `Count: ${item.raw.v}`; } } } } } }); }
-        handleChartClick(elements) { if (!elements || elements.length === 0) return; const group = elements[0].element.$context.raw.g; this.elements.classificationFilter.value = this.allForces.find(f => f.l1 === group) ? group : 'All'; this.elements.domainFilter.value = this.allForces.find(f => f.l2 === group) ? group : 'All'; this.applyFiltersAndRender(); }
+        handleChartClick(elements) { if (!elements || elements.length === 0) return; const group = elements[0].element.getRaw().g; this.elements.classificationFilter.value = this.allForces.find(f => f.l1 === group) ? group : 'All'; this.elements.domainFilter.value = this.allForces.find(f => f.l2 === group) ? group : 'All'; this.applyFiltersAndRender(); }
         renderCards(forces) { if (forces.length === 0) { this.elements.cardsContainer.innerHTML = `<p class="text-slate-500 text-center col-span-full">No driving forces match the current filters.</p>`; return; } this.elements.cardsContainer.innerHTML = forces.map((force, index) => `<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col h-full card-hover"><div class="flex-grow"><h4 class="text-lg font-bold text-slate-900 mb-2">${force.name}</h4><div class="mb-4 flex flex-wrap gap-2"><span class="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l1}</span><span class="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${force.l2}</span></div><p class="text-slate-600 text-sm mb-4">${force.desc}</p></div><div class="mt-auto pt-4 border-t border-slate-200"><button onclick="UltimateDashboard.toggleCitation('citation-${index}')" class="text-sm font-semibold text-amber-600 hover:text-amber-700">Show Citation</button><div id="citation-${index}" class="citation mt-2"><p class="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg">${force.citation}</p></div></div></div>`).join(''); }
         applyFiltersAndRender(fromURL = false) { const searchVal = this.elements.searchInput.value.toLowerCase(); const l1Val = this.elements.classificationFilter.value; const l2Val = this.elements.domainFilter.value; const outlookVal = this.elements.outlookFilter.value; this.filteredForces = this.allForces.filter(f => (searchVal === '' || f.name.toLowerCase().includes(searchVal) || f.desc.toLowerCase().includes(searchVal)) && (l1Val === 'All' || f.l1 === l1Val) && (l2Val === 'All' || f.l2 === l2Val) && (outlookVal === 'All' || f.outlook === outlookVal)); this.renderCards(this.filteredForces); this.renderSummaryStats(this.filteredForces); this.renderTreemapChart(this.filteredForces); if (!fromURL) this.updateURL(); }
         updateURL() { const filters = { search: this.elements.searchInput.value, l1: this.elements.classificationFilter.value, l2: this.elements.domainFilter.value, outlook: this.elements.outlookFilter.value }; try { const hash = btoa(JSON.stringify(filters)); history.pushState(null, '', '#' + hash); } catch (e) { console.error("Could not update URL", e); } }
@@ -75,39 +79,27 @@
         exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
         addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); }
         static toggleCitation(id) { document.getElementById(id)?.classList.toggle('show'); }
-        async init() { await this.fetchData(); this.populateFilters(); this.loadFiltersFromURL(); this.addEventListeners(); this.applyFiltersAndRender(true); this.elements.loadingIndicator.style.display = 'none'; this.elements.mainContent.style.display = 'block'; }
-    }
-    
-    // --- New, Guaranteed Script Loader and App Starter ---
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = () => resolve(script);
-            script.onerror = () => reject(new Error(`Script load error for ${src}`));
-            document.head.appendChild(script);
-        });
-    }
 
-    async function main() {
-        const loadingIndicator = document.getElementById('loading-indicator');
-        try {
-            // Sequentially load the libraries, guaranteeing order.
-            await loadScript("https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js");
-            await loadScript("https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.0/dist/chart.min.js");
-            
-            // Now that scripts are loaded, initialize the main application.
-            const app = new UltimateDashboard();
-            await app.init();
-
-        } catch (error) {
-            loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">A critical error occurred: ${error.message}</div>`;
-            console.error("A critical error occurred during startup:", error);
+        async init() {
+            try {
+                await this.fetchData();
+                this.populateFilters();
+                this.loadFiltersFromURL();
+                this.addEventListeners();
+                this.applyFiltersAndRender(true);
+                this.elements.loadingIndicator.style.display = 'none';
+                this.elements.mainContent.style.display = 'block';
+            } catch (error) {
+                this.elements.loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">Error: ${error.message}</div>`;
+                console.error("Dashboard initialization failed:", error);
+            }
         }
     }
-
-    // Start the entire process when the initial HTML document is ready.
-    document.addEventListener('DOMContentLoaded', main);
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = new UltimateDashboard();
+        app.init();
+    });
     </script>
 </body>
 </html>
