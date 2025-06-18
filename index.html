@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Cybersecurity Driving Forces Dashboard</title>
+    <title>Cybersecurity Driving Forces Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #f8fafc; font-family: 'Inter', sans-serif; }
@@ -77,24 +77,14 @@
         exportToCSV() { const headers = ['Driving Force Name', 'Description', 'PESTEL Category (L1)', 'Domain (L2)', 'Subdomain (L3)', 'Outlook', 'Momentum', 'Citation']; const rows = this.filteredForces.map(f => { const rowData = [f.name, f.desc, f.l1, f.l2, f.l3, f.outlook, f.momentum, f.citation]; return rowData.map(val => `"${(val || '').toString().replace(/"/g, '""')}"`).join(','); }); const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n'); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "filtered_driving_forces.csv"); document.body.appendChild(link); link.click(); document.body.removeChild(link); }
         addEventListeners() { this.elements.searchInput.addEventListener('input', this.debounce(() => this.applyFiltersAndRender(), 300)); const filterSelects = [this.elements.classificationFilter, this.elements.domainFilter, this.elements.outlookFilter]; filterSelects.forEach(sel => sel.addEventListener('change', () => this.applyFiltersAndRender())); this.elements.resetButton.addEventListener('click', () => { history.pushState(null, '', window.location.pathname); this.elements.searchInput.value = ''; filterSelects.forEach(sel => sel.value = 'All'); this.applyFiltersAndRender(); }); this.elements.exportButton.addEventListener('click', () => this.exportToCSV()); }
         static toggleCitation(id) { document.getElementById(id)?.classList.toggle('show'); }
-        async init() {
-            this.elements.loadingIndicator.innerHTML = `<p class="text-lg text-slate-600">Loading Data...</p>`;
-            await this.fetchData();
-            this.populateFilters();
-            this.loadFiltersFromURL();
-            this.addEventListeners();
-            this.applyFiltersAndRender(true);
-            this.elements.loadingIndicator.style.display = 'none';
-            this.elements.mainContent.style.display = 'block';
-        }
+        async init() { await this.fetchData(); this.populateFilters(); this.loadFiltersFromURL(); this.addEventListeners(); this.applyFiltersAndRender(true); this.elements.loadingIndicator.style.display = 'none'; this.elements.mainContent.style.display = 'block'; }
     }
-
-    // --- NEW: Guaranteed Script Loader and App Starter ---
+    
+    // --- Guaranteed Script Loader ---
     function loadScript(src) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = src;
-            script.async = false; // Ensure sequential execution relative to other async=false scripts
             script.onload = () => resolve(script);
             script.onerror = () => reject(new Error(`Script load error for ${src}`));
             document.head.appendChild(script);
@@ -104,21 +94,17 @@
     async function main() {
         const loadingIndicator = document.getElementById('loading-indicator');
         try {
-            // Sequentially load the libraries, guaranteeing order.
             await loadScript("https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js");
-            await loadScript("https://cdn.jsdelivr.net/npm/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js");
+            // --- THE FIX: Using an alternative CDN for the sunburst plugin ---
+            await loadScript("https://unpkg.com/chartjs-chart-sunburst@2.2.0/dist/chartjs-chart-sunburst.min.js");
             
-            // Now that scripts are loaded, initialize the main application.
             const app = new UltimateDashboard();
             await app.init();
-
         } catch (error) {
             loadingIndicator.innerHTML = `<div class="text-red-500 font-bold p-4">A critical error occurred: ${error.message}</div>`;
             console.error("A critical error occurred during startup:", error);
         }
     }
-
-    // Start the entire process when the initial HTML document is ready.
     document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
